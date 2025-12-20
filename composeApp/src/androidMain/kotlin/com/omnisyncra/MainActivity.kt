@@ -7,10 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.omnisyncra.di.commonModule
-import com.omnisyncra.core.platform.AndroidPlatform
+import com.omnisyncra.di.androidModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
-import org.koin.dsl.module
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,12 +19,7 @@ class MainActivity : ComponentActivity() {
         // Initialize Koin DI
         startKoin {
             androidContext(this@MainActivity)
-            modules(
-                commonModule,
-                module {
-                    single { AndroidPlatform(androidContext()) }
-                }
-            )
+            modules(commonModule, androidModule)
         }
 
         setContent {

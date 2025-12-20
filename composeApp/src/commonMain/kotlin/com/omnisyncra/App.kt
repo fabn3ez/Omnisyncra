@@ -12,12 +12,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import com.omnisyncra.core.platform.Platform
+import com.omnisyncra.core.state.DistributedStateManager
 import org.koin.compose.koinInject
+import kotlinx.coroutines.launch
 
 @Composable
 @Preview
 fun App() {
     val platform = koinInject<Platform>()
+    val stateManager = koinInject<DistributedStateManager>()
+    val scope = rememberCoroutineScope()
+    
+    // Initialize state manager
+    LaunchedEffect(Unit) {
+        stateManager.initialize()
+    }
+    
+    val crdtState by stateManager.crdtState.collectAsState()
+    val omnisyncraState by stateManager.omnisyncraState.collectAsState()
     
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -28,6 +40,7 @@ fun App() {
         )
     ) {
         var showDetails by remember { mutableStateOf(false) }
+        var showCrdtInfo by remember { mutableStateOf(false) }
         
         Column(
             modifier = Modifier
@@ -59,20 +72,33 @@ fun App() {
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = "Ambient Computing Mesh",
+                        text = "Distributed State Mesh",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Button(
-                        onClick = { showDetails = !showDetails },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(if (showDetails) "Hide Details" else "Show Platform Info")
+                        Button(
+                            onClick = { showDetails = !showDetails },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(if (showDetails) "Hide Platform" else "Show Platform")
+                        }
+                        
+                        Button(
+                            onClick = { showCrdtInfo = !showCrdtInfo },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text(if (showCrdtInfo) "Hide CRDT" else "Show CRDT")
+                        }
                     }
                 }
             }
@@ -107,23 +133,51 @@ fun App() {
                         PlatformInfoRow("WiFi", if (platform.capabilities.hasWiFi) "✅" else "❌")
                         PlatformInfoRow("Can Offload Compute", if (platform.capabilities.canOffloadCompute) "✅" else "❌")
                         PlatformInfoRow("Max Tasks", platform.capabilities.maxConcurrentTasks.toString())
+                    }
+                }
+            }
+            
+            AnimatedVisibility(showCrdtInfo) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        Text(
+                            text = "CRDT State Information",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
-                        Text(
-                            text = "Supported Protocols:",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
+                        PlatformInfoRow("Node ID", crdtState.nodeId.toString().take(8) + "...")
+                        PlatformInfoRow("Vector Clock Size", crdtState.vectorClock.clocks.size.toString())
+                        PlatformInfoRow("Operations Count", crdtState.operations.size.toString())
+                        PlatformInfoRow("Last Sync", 
+                            if (crdtState.lastSyncTimestamp > 0) "Synced" else "Never"
+                        )
+                        PlatformInfoRow("State Materialized", 
+                            if (omnisyncraState != null) "✅" else "❌"
                         )
                         
-                        platform.capabilities.supportedProtocols.forEach { protocol ->
+                        omnisyncraState?.let { state ->
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "• $protocol",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                modifier = Modifier.padding(start = 8.dp, top = 2.dp)
+                                text = "Application State:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            PlatformInfoRow("UI Mode", state.uiState.currentMode.name)
+                            PlatformInfoRow("Connected Devices", state.deviceMesh.connectedDevices.size.toString())
+                            PlatformInfoRow("Active Contexts", state.contextGraph.contexts.size.toString())
                         }
                     }
                 }
