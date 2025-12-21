@@ -8,6 +8,8 @@ import com.omnisyncra.core.state.DistributedStateManager
 import com.omnisyncra.core.state.StateRecovery
 import com.omnisyncra.core.storage.InMemoryStorage
 import com.omnisyncra.core.storage.LocalStorage
+import com.omnisyncra.core.ui.OmnisyncraUIOrchestrator
+import com.omnisyncra.core.ui.UIOrchestrator
 import org.koin.dsl.module
 
 val commonModule = module {
@@ -21,6 +23,16 @@ val commonModule = module {
     single { uuid4() } // Node ID
     single { StateRecovery(get(), get()) }
     single { DistributedStateManager(get(), get()) }
+    
+    // UI Orchestration
+    single<UIOrchestrator> { 
+        OmnisyncraUIOrchestrator(
+            platform = get(),
+            deviceDiscovery = get(),
+            stateManager = get(),
+            nodeId = get()
+        )
+    }
     
     // Compute Services
     single<PerformanceProfiler> { OmnisyncraPerformanceProfiler(get()) }
