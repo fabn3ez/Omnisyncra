@@ -3,6 +3,7 @@ package com.omnisyncra.core.discovery
 import com.benasher44.uuid.Uuid
 import com.omnisyncra.core.domain.Device
 import com.omnisyncra.core.platform.Platform
+import com.omnisyncra.core.resilience.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
@@ -15,6 +16,9 @@ class OmnisyncraDeviceDiscovery(
 ) : DeviceDiscovery {
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val errorRecovery = GlobalErrorRecovery.manager
+    private val circuitBreaker = errorRecovery.getCircuitBreaker("DeviceDiscovery")
+    private val retryPolicy = RetryPolicies.deviceDiscovery
     
     private val _discoveredDevices = MutableStateFlow<List<Device>>(emptyList())
     override val discoveredDevices: Flow<List<Device>> = _discoveredDevices.asStateFlow()
@@ -31,20 +35,51 @@ class OmnisyncraDeviceDiscovery(
     override suspend fun startDiscovery() {
         if (isDiscovering) return
         
+        val result = circuitBreaker.execute {
+            startDiscoveryInternal()
+        }
+        
+        result.onFailure { exception ->
+            errorRecovery.reportError(
+                component = "DeviceDiscovery",
+                exception = DeviceDiscoveryException(
+                    "Failed to start device discovery",
+                    exception
+                ),
+                context = mapOf(
+                    "mdns_enabled" to config.enableMdns.toString(),
+                    "bluetooth_enabled" to config.enableBluetooth.toString()
+                )
+            )
+        }
+    }
+    
+    private suspend fun startDiscoveryInternal() {
         isDiscovering = true
         discoveryJob = scope.launch {
             supervisorScope {
-                // Start mDNS discovery
+                // Start mDNS discovery with retry
                 if (config.enableMdns) {
                     launch {
-                        try {
-                            mdnsService.startDiscovery(config.serviceType)
-                            mdnsService.discoveredServices.collect { services ->
-                                val devices = services.mapNotNull { it.toDevice() }
-                                updateDiscoveredDevices(devices, "mdns")
+                        retryPolicy.execute(
+                            operation = { attempt ->
+                                mdnsService.startDiscovery(config.serviceType)
+                                mdnsService.discoveredServices.collect { services ->
+                                    val devices = services.mapNotNull { it.toDevice() }
+                                    updateDiscoveredDevices(devices, "mdns")
+                                }
+                            },
+                            shouldRetry = { exception ->
+                                exception !is ConfigurationException
                             }
-                        } catch (e: Exception) {
-                            // Handle mDNS errors gracefully
+                        ).onFailure { exception ->
+                            errorRecovery.reportError(
+                                component = "DeviceDiscovery",
+                                exception = DeviceDiscoveryException(
+                                    "mDNS discovery failed after retries",
+                                    exception
+                                )
+                            )
                         }
                     }
                 }

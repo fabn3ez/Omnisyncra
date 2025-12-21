@@ -3,6 +3,7 @@ package com.omnisyncra.core.compute
 import com.benasher44.uuid.Uuid
 import com.omnisyncra.core.domain.Device
 import com.omnisyncra.core.platform.Platform
+import com.omnisyncra.core.resilience.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
@@ -15,6 +16,9 @@ class OmnisyncraComputeScheduler(
 ) : ComputeScheduler {
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val errorRecovery = GlobalErrorRecovery.manager
+    private val circuitBreaker = errorRecovery.getCircuitBreaker("ComputeScheduler")
+    private val retryPolicy = RetryPolicies.computeTask
     
     private val _pendingTasks = MutableStateFlow<List<ComputeTask>>(emptyList())
     override val pendingTasks: Flow<List<ComputeTask>> = _pendingTasks.asStateFlow()

@@ -2,8 +2,11 @@ package com.omnisyncra.di
 
 import com.benasher44.uuid.uuid4
 import com.omnisyncra.core.compute.*
+import com.omnisyncra.core.performance.*
 import com.omnisyncra.core.platform.Platform
 import com.omnisyncra.core.platform.getPlatform
+import com.omnisyncra.core.resilience.*
+import com.omnisyncra.core.security.*
 import com.omnisyncra.core.state.DistributedStateManager
 import com.omnisyncra.core.state.StateRecovery
 import com.omnisyncra.core.storage.InMemoryStorage
@@ -18,6 +21,24 @@ val commonModule = module {
     
     // Storage - will be overridden by platform-specific modules
     single<LocalStorage> { InMemoryStorage() }
+    
+    // Performance Components
+    single { ConnectionPool() }
+    single { CrdtCache() }
+    single { PerformanceMonitor() }
+    single { BatchManager() }
+    
+    // Resilience Components
+    single { ErrorRecoveryManager() }
+    single { GracefulDegradationManager() }
+    
+    // Security Components
+    single { EncryptionService() }
+    single { AuditLogService(get()) }
+    single { AuthenticationService(get()) }
+    single { KeyExchangeService(get(), get(), get()) }
+    single { PermissionManager(get(), get(), get()) }
+    single { SecureMessagingService(get(), get(), get(), get(), get()) }
     
     // State Management
     single { uuid4() } // Node ID
