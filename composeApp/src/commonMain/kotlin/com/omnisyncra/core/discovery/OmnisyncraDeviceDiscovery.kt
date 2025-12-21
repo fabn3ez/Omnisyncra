@@ -60,7 +60,7 @@ class OmnisyncraDeviceDiscovery(
                                     val proximityUpdate = ProximityUpdate(
                                         deviceId = btDevice.deviceId,
                                         proximityInfo = btDevice.toProximityInfo(),
-                                        timestamp = Clock.System.now().toEpochMilliseconds()
+                                        timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                                     )
                                     _proximityUpdates.emit(proximityUpdate)
                                 }
@@ -188,12 +188,12 @@ class OmnisyncraDeviceDiscovery(
             if (existingIndex >= 0) {
                 // Update existing device
                 currentDevices[existingIndex] = newDevice.copy(
-                    lastSeen = Clock.System.now().toEpochMilliseconds()
+                    lastSeen = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                 )
             } else {
                 // Add new device
                 currentDevices.add(newDevice.copy(
-                    lastSeen = Clock.System.now().toEpochMilliseconds()
+                    lastSeen = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                 ))
             }
         }
@@ -215,7 +215,7 @@ class OmnisyncraDeviceDiscovery(
     }
     
     private fun cleanupStaleDevices() {
-        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val currentTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         val staleThreshold = 30000L // 30 seconds
         
         val activeDevices = _discoveredDevices.value.filter { device ->

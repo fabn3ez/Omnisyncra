@@ -70,8 +70,8 @@ class OmnisyncraComputeScheduler(
                 taskId = taskId,
                 status = TaskStatus.CANCELLED,
                 executedBy = runningTask.assignedNode.device.id,
-                executionTimeMs = Clock.System.now().toEpochMilliseconds() - runningTask.startedAt,
-                completedAt = Clock.System.now().toEpochMilliseconds()
+                executionTimeMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - runningTask.startedAt,
+                completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
             
             val currentCompleted = _completedTasks.value.toMutableList()
@@ -113,7 +113,7 @@ class OmnisyncraComputeScheduler(
             averageExecutionTimeMs = 1000L,
             successRate = 1.0,
             totalTasksCompleted = 0,
-            lastPerformanceUpdate = Clock.System.now().toEpochMilliseconds()
+            lastPerformanceUpdate = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
         val availability = NodeAvailability(
             status = NodeStatus.AVAILABLE
@@ -124,7 +124,7 @@ class OmnisyncraComputeScheduler(
             capacity = capacity,
             performance = performance,
             availability = availability,
-            lastSeen = Clock.System.now().toEpochMilliseconds()
+            lastSeen = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
         
         val currentNodes = computeNodes.value.toMutableMap()
@@ -144,7 +144,7 @@ class OmnisyncraComputeScheduler(
         if (existingNode != null) {
             currentNodes[deviceId] = existingNode.copy(
                 capacity = availableCapacity,
-                lastSeen = Clock.System.now().toEpochMilliseconds()
+                lastSeen = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
             computeNodes.value = currentNodes
         }
@@ -215,8 +215,8 @@ class OmnisyncraComputeScheduler(
         val execution = TaskExecution(
             task = task,
             assignedNode = node,
-            startedAt = Clock.System.now().toEpochMilliseconds(),
-            estimatedCompletionAt = Clock.System.now().toEpochMilliseconds() + task.requirements.estimatedDurationMs
+            startedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+            estimatedCompletionAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() + task.requirements.estimatedDurationMs
         )
         
         val currentRunning = _runningTasks.value.toMutableList()
@@ -245,8 +245,8 @@ class OmnisyncraComputeScheduler(
                         isRetryable = true
                     ),
                     executedBy = node.device.id,
-                    executionTimeMs = Clock.System.now().toEpochMilliseconds() - execution.startedAt,
-                    completedAt = Clock.System.now().toEpochMilliseconds()
+                    executionTimeMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - execution.startedAt,
+                    completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
                 )
                 
                 handleTaskCompletion(task.id, errorResult)

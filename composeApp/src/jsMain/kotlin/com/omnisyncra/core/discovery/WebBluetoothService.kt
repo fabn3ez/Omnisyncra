@@ -50,7 +50,7 @@ class WebBluetoothService : BluetoothService {
             val proximityUpdate = ProximityUpdate(
                 deviceId = deviceInfo.deviceId,
                 proximityInfo = deviceInfo.toProximityInfo(),
-                timestamp = Clock.System.now().toEpochMilliseconds()
+                timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
             _proximityUpdates.tryEmit(proximityUpdate)
             

@@ -25,7 +25,7 @@ class KtorComputeNetworkCommunicator : ComputeNetworkCommunicator {
         // Simulate network delay
         delay(networkLatency)
         
-        val startTime = Clock.System.now().toEpochMilliseconds()
+        val startTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         try {
             // Simulate task serialization and network transmission
@@ -39,7 +39,7 @@ class KtorComputeNetworkCommunicator : ComputeNetworkCommunicator {
             delay(networkLatency)
             delay(30) // Deserialization overhead
             
-            val totalExecutionTime = Clock.System.now().toEpochMilliseconds() - startTime
+            val totalExecutionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
             
             // Simulate successful remote execution
             val result = simulateRemoteTaskExecution(task, targetDevice)
@@ -50,11 +50,11 @@ class KtorComputeNetworkCommunicator : ComputeNetworkCommunicator {
                 result = result,
                 executedBy = targetDevice.id,
                 executionTimeMs = totalExecutionTime,
-                completedAt = Clock.System.now().toEpochMilliseconds()
+                completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
             
         } catch (e: Exception) {
-            val totalExecutionTime = Clock.System.now().toEpochMilliseconds() - startTime
+            val totalExecutionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
             
             return TaskResult(
                 taskId = task.id,
@@ -70,7 +70,7 @@ class KtorComputeNetworkCommunicator : ComputeNetworkCommunicator {
                 ),
                 executedBy = targetDevice.id,
                 executionTimeMs = totalExecutionTime,
-                completedAt = Clock.System.now().toEpochMilliseconds()
+                completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
         }
     }

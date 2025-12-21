@@ -39,7 +39,7 @@ class OmnisyncraPerformanceProfiler(
     
     override suspend fun profileDevice(): DeviceProfile {
         val cachedProfile = this.cachedProfile
-        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val currentTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         // Use cached profile if it's less than 5 minutes old
         if (cachedProfile != null && (currentTime - cachedProfile.profiledAt) < 300_000) {
@@ -81,14 +81,14 @@ class OmnisyncraPerformanceProfiler(
     
     override suspend fun benchmarkTaskType(taskType: TaskType): TaskTypeBenchmark {
         val cached = benchmarkCache[taskType]
-        val currentTime = Clock.System.now().toEpochMilliseconds()
+        val currentTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         // Use cached benchmark if it's less than 10 minutes old
         if (cached != null && (currentTime - cached.benchmarkedAt) < 600_000) {
             return cached
         }
         
-        val startTime = Clock.System.now().toEpochMilliseconds()
+        val startTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         // Simulate task-specific benchmarking
         val benchmarkDuration = when (taskType) {
@@ -102,7 +102,7 @@ class OmnisyncraPerformanceProfiler(
             TaskType.CUSTOM -> simulateCustomBenchmark()
         }
         
-        val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
+        val executionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
         
         val performanceScore = calculatePerformanceScore(taskType, executionTime)
         val memoryUsage = estimateMemoryUsage(taskType)
@@ -110,7 +110,7 @@ class OmnisyncraPerformanceProfiler(
         val benchmark = TaskTypeBenchmark(
             taskType = taskType,
             averageExecutionTimeMs = executionTime,
-            successRate = 0.95 + (Math.random() * 0.05), // 95-100% success rate
+            successRate = 0.95 + (kotlin.random.Random.nextDouble() * 0.05), // 95-100% success rate
             performanceScore = performanceScore,
             memoryUsageMB = memoryUsage,
             benchmarkedAt = currentTime
@@ -146,7 +146,7 @@ class OmnisyncraPerformanceProfiler(
     }
     
     private suspend fun benchmarkComputePerformance(): Double {
-        val startTime = Clock.System.now().toEpochMilliseconds()
+        val startTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         // Simulate CPU-intensive benchmark
         var result = 0
@@ -154,7 +154,7 @@ class OmnisyncraPerformanceProfiler(
             result += (it * 2) % 1000
         }
         
-        val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
+        val executionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
         
         // Score based on execution time (lower is better)
         return when {
@@ -180,9 +180,9 @@ class OmnisyncraPerformanceProfiler(
     
     private suspend fun benchmarkNetworkPerformance(): Double {
         // Simulate network latency test
-        val startTime = Clock.System.now().toEpochMilliseconds()
+        val startTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         delay(10) // Simulate network round trip
-        val latency = Clock.System.now().toEpochMilliseconds() - startTime
+        val latency = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
         
         return when {
             latency < 20 -> 10.0

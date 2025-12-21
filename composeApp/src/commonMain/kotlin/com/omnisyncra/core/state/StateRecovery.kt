@@ -32,7 +32,7 @@ class StateRecovery(
             name = platform.getDeviceName(),
             type = platform.deviceType,
             capabilities = platform.capabilities,
-            lastSeen = Clock.System.now().toEpochMilliseconds()
+            lastSeen = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
         
         val initialContext = OmnisyncraContext(
@@ -42,15 +42,15 @@ class StateRecovery(
                 tags = listOf("welcome", "initial"),
                 aiSummary = "Initial context for new Omnisyncra installation"
             ),
-            createdAt = Clock.System.now().toEpochMilliseconds(),
-            lastModified = Clock.System.now().toEpochMilliseconds(),
+            createdAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+            lastModified = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
             deviceId = nodeId
         )
         
         val contextGraph = ContextGraph(
             contexts = mapOf(initialContext.id to initialContext),
             activeContext = initialContext.id,
-            lastUpdated = Clock.System.now().toEpochMilliseconds()
+            lastUpdated = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
         
         val deviceMesh = DeviceMesh(
@@ -93,7 +93,7 @@ class StateRecovery(
             nodeId = nodeId,
             vectorClock = VectorClock(mapOf(nodeId to 1L)),
             operations = emptyList(),
-            lastSyncTimestamp = Clock.System.now().toEpochMilliseconds()
+            lastSyncTimestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
     }
     

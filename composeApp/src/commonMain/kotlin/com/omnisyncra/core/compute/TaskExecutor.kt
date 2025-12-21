@@ -27,7 +27,7 @@ class LocalTaskExecutor(
     private val runningTasks = mutableMapOf<Uuid, ComputeTask>()
     
     override suspend fun executeTask(task: ComputeTask): TaskResult {
-        val startTime = Clock.System.now().toEpochMilliseconds()
+        val startTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         
         try {
             runningTasks[task.id] = task
@@ -43,7 +43,7 @@ class LocalTaskExecutor(
                 TaskType.CUSTOM -> executeCustomTask(task)
             }
             
-            val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
+            val executionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
             
             return TaskResult(
                 taskId = task.id,
@@ -51,11 +51,11 @@ class LocalTaskExecutor(
                 result = result,
                 executedBy = deviceId,
                 executionTimeMs = executionTime,
-                completedAt = Clock.System.now().toEpochMilliseconds()
+                completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
             
         } catch (e: Exception) {
-            val executionTime = Clock.System.now().toEpochMilliseconds() - startTime
+            val executionTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - startTime
             
             return TaskResult(
                 taskId = task.id,
@@ -67,7 +67,7 @@ class LocalTaskExecutor(
                 ),
                 executedBy = deviceId,
                 executionTimeMs = executionTime,
-                completedAt = Clock.System.now().toEpochMilliseconds()
+                completedAt = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             )
         } finally {
             runningTasks.remove(task.id)
@@ -166,7 +166,7 @@ class LocalTaskExecutor(
             data = mapOf(
                 "sentiment" to sentiment,
                 "keywords" to keywords.joinToString(","),
-                "confidence" to (0.75 + Math.random() * 0.2).toString(),
+                "confidence" to (0.75 + kotlin.random.Random.nextDouble() * 0.2).toString(),
                 "analysis_type" to analysisType,
                 "word_count" to text.split(" ").size.toString(),
                 "processing_time_ms" to processingTime.toString()
@@ -238,7 +238,7 @@ class LocalTaskExecutor(
             data = mapOf(
                 "context_type" to contextType,
                 "suggestions" to suggestions.joinToString("|"),
-                "priority_score" to (0.6 + Math.random() * 0.4).toString(),
+                "priority_score" to (0.6 + kotlin.random.Random.nextDouble() * 0.4).toString(),
                 "related_contexts" to "ctx_${kotlin.random.Random.nextInt(1000, 10000)},ctx_${kotlin.random.Random.nextInt(1000, 10000)}",
                 "user_activity" to userActivity,
                 "processing_time_ms" to processingTime.toString()

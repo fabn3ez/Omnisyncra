@@ -45,17 +45,17 @@ class DistributedStateManager(
         val timestampedOperation = when (operation) {
             is CrdtOperation.DeviceUpdate -> operation.copy(
                 nodeId = nodeId,
-                timestamp = Clock.System.now().toEpochMilliseconds(),
+                timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
                 vectorClock = incrementedClock
             )
             is CrdtOperation.ContextUpdate -> operation.copy(
                 nodeId = nodeId,
-                timestamp = Clock.System.now().toEpochMilliseconds(),
+                timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
                 vectorClock = incrementedClock
             )
             is CrdtOperation.StateSync -> operation.copy(
                 nodeId = nodeId,
-                timestamp = Clock.System.now().toEpochMilliseconds(),
+                timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
                 vectorClock = incrementedClock
             )
         }
@@ -155,7 +155,7 @@ class DistributedStateManager(
             } else {
                 ConflictResolutionType.REJECT
             },
-            timestamp = Clock.System.now().toEpochMilliseconds()
+            timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         )
     }
     
