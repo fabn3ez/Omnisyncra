@@ -1,6 +1,7 @@
 package com.omnisyncra.di
 
 import com.benasher44.uuid.uuid4
+import com.omnisyncra.core.compute.*
 import com.omnisyncra.core.platform.Platform
 import com.omnisyncra.core.platform.getPlatform
 import com.omnisyncra.core.state.DistributedStateManager
@@ -20,4 +21,37 @@ val commonModule = module {
     single { uuid4() } // Node ID
     single { StateRecovery(get(), get()) }
     single { DistributedStateManager(get(), get()) }
+    
+    // Compute Services
+    single<PerformanceProfiler> { OmnisyncraPerformanceProfiler(get()) }
+    single<TaskExecutor> {
+        val nodeId = get<com.benasher44.uuid.Uuid>()
+        val platform = get<Platform>()
+        val capabilities = ExecutorCapabilities(
+            maxConcurrentTasks = platform.capabilities.maxConcurrentTasks,
+            supportedTaskTypes = TaskType.values().toList(),
+            hasGPUAcceleration = platform.capabilities.computePower.ordinal >= 2,
+            maxMemoryMB = when (platform.capabilities.computePower) {
+                com.omnisyncra.core.domain.ComputePower.LOW -> 2048
+                com.omnisyncra.core.domain.ComputePower.MEDIUM -> 4096
+                com.omnisyncra.core.domain.ComputePower.HIGH -> 8192
+                com.omnisyncra.core.domain.ComputePower.EXTREME -> 16384
+            },
+            estimatedPerformanceMultiplier = when (platform.capabilities.computePower) {
+                com.omnisyncra.core.domain.ComputePower.LOW -> 0.5
+                com.omnisyncra.core.domain.ComputePower.MEDIUM -> 1.0
+                com.omnisyncra.core.domain.ComputePower.HIGH -> 1.5
+                com.omnisyncra.core.domain.ComputePower.EXTREME -> 2.0
+            }
+        )
+        LocalTaskExecutor(nodeId, capabilities)
+    }
+    single<ComputeNetworkCommunicator> { KtorComputeNetworkCommunicator() }
+    single<ComputeScheduler> { 
+        OmnisyncraComputeScheduler(
+            localPlatform = get(),
+            taskExecutor = get(),
+            networkCommunicator = get()
+        )
+    }
 }
