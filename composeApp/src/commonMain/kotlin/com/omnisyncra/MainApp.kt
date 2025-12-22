@@ -76,6 +76,11 @@ fun MainApp() {
                 Tab(
                     selected = selectedTab == 4,
                     onClick = { selectedTab = 4 },
+                    text = { Text("Enhanced UI") }
+                )
+                Tab(
+                    selected = selectedTab == 5,
+                    onClick = { selectedTab = 5 },
                     text = { Text("UI Demo") }
                 )
             }
@@ -86,7 +91,8 @@ fun MainApp() {
                 1 -> CrdtStateScreen()
                 2 -> ComputeTasksScreen()
                 3 -> SecurityDemoScreen()
-                4 -> AppWithUIOrchestration()
+                4 -> EnhancedUIScreen()
+                5 -> AppWithUIOrchestration()
             }
         }
     }
