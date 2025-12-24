@@ -10,6 +10,8 @@ import com.omnisyncra.ui.*
 import com.omnisyncra.ui.morphing.*
 import com.omnisyncra.ui.components.*
 import com.omnisyncra.ui.gestures.*
+import com.omnisyncra.ui.screens.*
+import com.omnisyncra.ui.demo.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -177,6 +179,26 @@ fun MainApp() {
                     },
                     text = { Text("Morphing Demo") }
                 )
+                Tab(
+                    selected = selectedTab == 6,
+                    onClick = { 
+                        selectedTab = 6
+                        scope.launch {
+                            morphingController.morphToContext(UIContext.VIEWER)
+                        }
+                    },
+                    text = { Text("Phase 8 Visual") }
+                )
+                Tab(
+                    selected = selectedTab == 7,
+                    onClick = { 
+                        selectedTab = 7
+                        scope.launch {
+                            morphingController.morphToContext(UIContext.MESH)
+                        }
+                    },
+                    text = { Text("Real-World Demo") }
+                )
             }
             
             // Adaptive Content Layout
@@ -192,6 +214,8 @@ fun MainApp() {
                     3 -> SecurityDemoScreen()
                     4 -> EnhancedUIScreen()
                     5 -> MorphingDemoScreen(morphingController, gestureController, hapticFeedback)
+                    6 -> ImmersiveVisualScreen()
+                    7 -> RealWorldVisualDemo()
                 }
             }
             
