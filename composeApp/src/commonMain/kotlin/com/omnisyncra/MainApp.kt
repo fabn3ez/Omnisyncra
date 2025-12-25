@@ -58,7 +58,7 @@ fun MainApp() {
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Phase 7: Dynamic UI Morphing & Transitions",
+                            text = "Phase 9: Ghost Handoff System",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -199,6 +199,16 @@ fun MainApp() {
                     },
                     text = { Text("Real-World Demo") }
                 )
+                Tab(
+                    selected = selectedTab == 8,
+                    onClick = { 
+                        selectedTab = 8
+                        scope.launch {
+                            morphingController.morphToContext(UIContext.SETTINGS)
+                        }
+                    },
+                    text = { Text("Phase 9 Ghost") }
+                )
             }
             
             // Adaptive Content Layout
@@ -216,6 +226,7 @@ fun MainApp() {
                     5 -> MorphingDemoScreen(morphingController, gestureController, hapticFeedback)
                     6 -> ImmersiveVisualScreen()
                     7 -> RealWorldVisualDemo()
+                    8 -> GhostHandoffScreen()
                 }
             }
             
