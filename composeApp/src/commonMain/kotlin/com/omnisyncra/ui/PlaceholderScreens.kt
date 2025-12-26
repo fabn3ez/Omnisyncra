@@ -51,7 +51,7 @@ fun ComputeTasksScreen() {
 }
 
 @Composable
-fun SecurityDemoScreen() {
+fun SecurityPlaceholderScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
