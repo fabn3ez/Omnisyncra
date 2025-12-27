@@ -58,7 +58,7 @@ fun MainApp() {
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Phase 9: Ghost Handoff System",
+                            text = "Phase 11: Privacy-First AI Integration",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -209,6 +209,16 @@ fun MainApp() {
                     },
                     text = { Text("Phase 9 Ghost") }
                 )
+                Tab(
+                    selected = selectedTab == 9,
+                    onClick = { 
+                        selectedTab = 9
+                        scope.launch {
+                            morphingController.morphToContext(UIContext.EDITOR)
+                        }
+                    },
+                    text = { Text("AI System") }
+                )
             }
             
             // Adaptive Content Layout
@@ -227,6 +237,7 @@ fun MainApp() {
                     6 -> ImmersiveVisualScreen()
                     7 -> RealWorldVisualDemo()
                     8 -> GhostHandoffScreen()
+                    9 -> AIManagementScreen()
                 }
             }
             
