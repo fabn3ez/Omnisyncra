@@ -2,6 +2,7 @@ package com.omnisyncra.core.state
 
 import com.benasher44.uuid.Uuid
 import com.omnisyncra.core.security.*
+import com.omnisyncra.core.crdt.CrdtOperation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -66,39 +66,10 @@ data class SecurityStatus(
     val activeChannels: Int,
     val trustedDevices: Int,
     val pendingAuthentications: Int,
-    val lastSecurityEvent: SecurityEvent?
+    val lastSecurityEvent: com.omnisyncra.core.security.SecurityEvent?
 )
 
-/**
- * Security event for logging and monitoring
- */
-data class SecurityEvent(
-    val id: String,
-    val type: SecurityEventType,
-    val deviceId: Uuid?,
-    val timestamp: Long,
-    val message: String,
-    val severity: SecuritySeverity,
-    val metadata: Map<String, String> = emptyMap()
-)
-
-enum class SecurityEventType {
-    AUTHENTICATION_SUCCESS,
-    AUTHENTICATION_FAILURE,
-    TRUST_ESTABLISHED,
-    TRUST_REVOKED,
-    ENCRYPTION_ERROR,
-    KEY_ROTATION,
-    CERTIFICATE_EXPIRED,
-    SECURITY_VIOLATION
-}
-
-enum class SecuritySeverity {
-    INFO,
-    WARNING,
-    ERROR,
-    CRITICAL
-}
+// Note: SecurityEvent, SecurityEventType, and SecurityEventSeverity are defined in SecurityEventLogger.kt
 
 /**
  * Enhanced device certificate with additional security features

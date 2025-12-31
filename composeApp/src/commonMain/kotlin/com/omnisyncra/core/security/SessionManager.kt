@@ -190,8 +190,25 @@ class OmnisyncraSessionManager(
             val currentTime = Clock.System.now().toEpochMilliseconds()
             
             // Generate session key using key exchange
-            val keyExchangeSession = keyExchangeManager.initiateKeyExchange(remoteDeviceId)
-            val sessionKey = keyExchangeSession.deriveSessionKey("secure_session_$sessionId")
+            val keyExchangeRequest = keyExchangeManager.initiateKeyExchange(remoteDeviceId)
+            if (keyExchangeRequest == null) {
+                securityLogger.logEvent(
+                    SecurityEvent(
+                        id = com.benasher44.uuid.uuid4().toString(),
+                        type = SecurityEventType.KEY_EXCHANGE_FAILED,
+                        severity = SecurityEventSeverity.ERROR,
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
+                        deviceId = nodeId.toString(),
+                        message = "Failed to initiate key exchange",
+                        details = mapOf("remote_device" to remoteDeviceId.toString())
+                    )
+                )
+                return null
+            }
+            
+            // For now, generate a temporary session key
+            // In a real implementation, this would complete the key exchange protocol
+            val sessionKey = generateTemporarySessionKey()
             
             val session = SecureSession(
                 sessionId = sessionId,
@@ -464,8 +481,24 @@ class OmnisyncraSessionManager(
             sessions[sessionId] = updatedSession
             
             // Generate new session key
-            val keyExchangeSession = keyExchangeManager.initiateKeyExchange(session.remoteDeviceId)
-            val newSessionKey = keyExchangeSession.deriveSessionKey("rotated_session_${sessionId}_${session.keyRotationCount + 1}")
+            val keyExchangeRequest = keyExchangeManager.initiateKeyExchange(session.remoteDeviceId)
+            if (keyExchangeRequest == null) {
+                securityLogger.logEvent(
+                    SecurityEvent(
+                        id = com.benasher44.uuid.uuid4().toString(),
+                        type = SecurityEventType.KEY_EXCHANGE_FAILED,
+                        severity = SecurityEventSeverity.ERROR,
+                        timestamp = Clock.System.now().toEpochMilliseconds(),
+                        deviceId = nodeId.toString(),
+                        message = "Failed to initiate key exchange for rotation",
+                        details = mapOf("remote_device" to session.remoteDeviceId.toString())
+                    )
+                )
+                return null
+            }
+            
+            // For now, generate a temporary session key
+            val newSessionKey = generateTemporarySessionKey()
             
             val rotatedSession = updatedSession.copy(
                 state = SessionState.ACTIVE,

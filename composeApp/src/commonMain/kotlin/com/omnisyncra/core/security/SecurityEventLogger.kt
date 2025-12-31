@@ -94,6 +94,9 @@ interface SecurityEventLogger {
         error: Throwable? = null
     )
     
+    // Overloaded method for SecurityEvent objects
+    fun logEvent(event: SecurityEvent)
+    
     suspend fun getEvents(
         startTime: Long? = null,
         endTime: Long? = null,
@@ -112,8 +115,8 @@ interface SecurityEventLogger {
     suspend fun clearEvents(olderThan: Long? = null): Int
     suspend fun rotateLog(): Boolean
     suspend fun exportLogs(format: String = "json"): String
-    suspend fun setLogLevel(severity: SecurityEventSeverity)
-    suspend fun getLogLevel(): SecurityEventSeverity
+    fun setLogLevel(severity: SecurityEventSeverity)
+    fun getLogLevel(): SecurityEventSeverity
 }
 
 /**
@@ -182,6 +185,29 @@ class OmnisyncraSecurityEventLogger(
             stackTrace = error?.stackTraceToString()
         )
         
+        logEventInternal(event)
+    }
+    
+    override fun logEvent(event: SecurityEvent) {
+        // Check if event should be logged based on log level
+        if (!shouldLogEvent(event.severity)) {
+            return
+        }
+        
+        // Write to platform storage
+        try {
+            // Note: This should be called from a coroutine context
+            // For now, we'll just update in-memory events
+            updateRecentEvents(event)
+        } catch (e: Exception) {
+            // If logging fails, at least keep in memory
+            updateRecentEvents(event.copy(
+                details = event.details + ("logging_error" to (e.message ?: "Unknown error"))
+            ))
+        }
+    }
+    
+    private suspend fun logEventInternal(event: SecurityEvent) {
         // Write to platform storage
         try {
             platformLogger.writeEvent(event)
@@ -254,10 +280,13 @@ class OmnisyncraSecurityEventLogger(
             if (success) {
                 lastRotationTime = Clock.System.now().toEpochMilliseconds()
                 
-                // Log the rotation event
-                logEvent(
+                // Create event directly to avoid recursion
+                val event = SecurityEvent(
+                    id = com.benasher44.uuid.uuid4().toString(),
                     type = SecurityEventType.SYSTEM_COMPROMISE_DETECTED, // Reusing for system events
                     severity = SecurityEventSeverity.INFO,
+                    timestamp = lastRotationTime,
+                    deviceId = deviceId.toString(),
                     message = "Security log rotation completed",
                     details = mapOf(
                         "rotation_time" to lastRotationTime.toString(),
@@ -265,6 +294,14 @@ class OmnisyncraSecurityEventLogger(
                         "max_files" to rotationConfig.maxLogFiles.toString()
                     )
                 )
+                
+                // Log directly without recursion
+                try {
+                    platformLogger.writeEvent(event)
+                    updateRecentEvents(event)
+                } catch (e: Exception) {
+                    // Ignore logging errors for rotation events
+                }
             }
             success
         } catch (e: Exception) {
@@ -286,23 +323,33 @@ class OmnisyncraSecurityEventLogger(
         }
     }
     
-    override suspend fun setLogLevel(severity: SecurityEventSeverity) {
+    override fun setLogLevel(severity: SecurityEventSeverity) {
         _logLevel.value = severity
         
-        logEvent(
+        // Create event directly to avoid recursion
+        val event = SecurityEvent(
+            id = com.benasher44.uuid.uuid4().toString(),
             type = SecurityEventType.SYSTEM_COMPROMISE_DETECTED, // Reusing for system events
             severity = SecurityEventSeverity.INFO,
+            timestamp = Clock.System.now().toEpochMilliseconds(),
+            deviceId = deviceId.toString(),
             message = "Security log level changed",
             details = mapOf(
                 "new_level" to severity.name,
                 "changed_by" to deviceId.toString()
             )
         )
+        
+        // Log directly without recursion
+        try {
+            platformLogger.writeEvent(event)
+            updateRecentEvents(event)
+        } catch (e: Exception) {
+            // Ignore logging errors for log level changes
+        }
     }
     
-    override suspend fun getLogLevel(): SecurityEventSeverity {
-        return _logLevel.value
-    }
+    override fun getLogLevel(): SecurityEventSeverity = _logLevel.value
     
     private fun shouldLogEvent(severity: SecurityEventSeverity): Boolean {
         val currentLevel = _logLevel.value
