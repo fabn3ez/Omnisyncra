@@ -94,9 +94,10 @@ fun ComprehensiveUIScreen() {
                         0 -> DeviceDiscoverySection(primaryGlow, accentGlow)
                         1 -> SecurityManagementSection(secondaryGlow, primaryGlow)
                         2 -> AIManagementScreen()
-                        3 -> DistributedStateSection(primaryGlow, secondaryGlow)
-                        4 -> ComputeOffloadingSection(accentGlow, secondaryGlow)
-                        5 -> SystemStatusSection(primaryGlow, accentGlow)
+                        3 -> GhostHandoffScreen()
+                        4 -> DistributedStateSection(primaryGlow, secondaryGlow)
+                        5 -> ComputeOffloadingSection(accentGlow, secondaryGlow)
+                        6 -> SystemStatusSection(primaryGlow, accentGlow)
                     }
                 }
             }
@@ -230,6 +231,7 @@ private fun PremiumSidebar(
         SidebarSection("Device Discovery", Icons.Default.Devices, "Proximity-aware device detection"),
         SidebarSection("Security & Trust", Icons.Default.Security, "End-to-end encryption & trust"),
         SidebarSection("AI Integration", Icons.Default.Psychology, "Privacy-first AI processing"),
+        SidebarSection("Ghost Handoff", Icons.Default.SwapHoriz, "Seamless state transfer"),
         SidebarSection("Distributed State", Icons.Default.Storage, "CRDT-based synchronization"),
         SidebarSection("Compute Offloading", Icons.Default.CloudQueue, "Intelligent task distribution"),
         SidebarSection("System Status", Icons.Default.Dashboard, "Real-time system monitoring")

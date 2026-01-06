@@ -99,3 +99,11 @@ val commonModule = module {
         )
     }
 }
+
+// All modules for easy import
+val allModules = listOf(
+    commonModule,
+    securityModule,
+    aiModule,
+    handoffModule
+)

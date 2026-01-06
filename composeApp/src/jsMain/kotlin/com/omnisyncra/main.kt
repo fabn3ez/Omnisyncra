@@ -2,7 +2,7 @@ package com.omnisyncra
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
-import com.omnisyncra.di.commonModule
+import com.omnisyncra.di.allModules
 import kotlinx.browser.document
 import org.koin.core.context.startKoin
 
@@ -10,7 +10,7 @@ import org.koin.core.context.startKoin
 fun main() {
     // Initialize Koin DI
     startKoin {
-        modules(commonModule)
+        modules(allModules)
     }
     
     ComposeViewport(document.body!!) {
