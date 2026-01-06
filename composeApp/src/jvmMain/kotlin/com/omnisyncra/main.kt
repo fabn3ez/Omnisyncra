@@ -13,7 +13,7 @@ fun main() = application {
     
     Window(
         onCloseRequest = ::exitApplication,
-        title = "Omnisyncra KMP - Phase 11: Privacy-First AI Integration",
+        title = "Omnisyncra - Privacy-First Distributed Computing",
     ) {
         MainApp()
     }

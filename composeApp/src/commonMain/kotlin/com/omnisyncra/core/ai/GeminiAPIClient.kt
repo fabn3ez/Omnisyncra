@@ -8,31 +8,340 @@ import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlin.math.min
-import kotlin.math.pow
-import kotlin.random.Random
+import com.omnisyncra.core.platform.TimeUtils
 
 /**
- * Gemini API configuration
+ * Gemini API Client for semantic analysis
+ * Handles API communication with privacy controls and rate limiting
  */
-@Serializable
-data class GeminiAPIConfig(
-    val apiKey: String,
-    val endpoint: String = "https://generativelanguage.googleapis.com/v1beta",
-    val model: String = "gemini-pro",
-    val maxTokens: Int = 8192,
-    val temperature: Float = 0.1f,
-    val rateLimitPerMinute: Int = 60
-)
+class GeminiAPIClient(
+    private val apiKey: String,
+    private val httpClient: HttpClient
+) {
+    private val baseUrl = "https://generativelanguage.googleapis.com/v1beta"
+    private val json = Json { ignoreUnknownKeys = true }
+    
+    // Rate limiting
+    private var lastRequestTime = 0L
+    private val minRequestInterval = 100L // 100ms between requests
+    private var requestCount = 0
+    private var requestWindowStart = 0L
+    private val maxRequestsPerMinute = 60
+    
+    /**
+     * Analyze content semantically
+     */
+    suspend fun analyzeContent(content: String, contentType: ContentType): Result<SemanticAnalysis> {
+        return try {
+            // Rate limiting
+            enforceRateLimit()
+            
+            val prompt = buildAnalysisPrompt(content, contentType)
+            val response = makeRequest(prompt)
+            
+            val analysis = parseAnalysisResponse(response, contentType)
+            Result.success(analysis)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Generate content summary
+     */
+    suspend fun generateSummary(content: String, contentType: ContentType, maxLength: Int = 200): Result<ContentSummary> {
+        return try {
+            enforceRateLimit()
+            
+            val prompt = buildSummaryPrompt(content, contentType, maxLength)
+            val response = makeRequest(prompt)
+            
+            val summary = parseSummaryResponse(response, content, contentType)
+            Result.success(summary)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Extract key topics from content
+     */
+    suspend fun extractTopics(content: String): Result<List<String>> {
+        return try {
+            enforceRateLimit()
+            
+            val prompt = buildTopicExtractionPrompt(content)
+            val response = makeRequest(prompt)
+            
+            val topics = parseTopicsResponse(response)
+            Result.success(topics)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Analyze communication intent
+     */
+    suspend fun analyzeIntent(content: String): Result<IntentAnalysis> {
+        return try {
+            enforceRateLimit()
+            
+            val prompt = buildIntentPrompt(content)
+            val response = makeRequest(prompt)
+            
+            val intent = parseIntentResponse(response)
+            Result.success(intent)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    private suspend fun enforceRateLimit() {
+        val currentTime = TimeUtils.currentTimeMillis()
+        
+        // Enforce minimum interval between requests
+        val timeSinceLastRequest = currentTime - lastRequestTime
+        if (timeSinceLastRequest < minRequestInterval) {
+            delay(minRequestInterval - timeSinceLastRequest)
+        }
+        
+        // Enforce requests per minute limit
+        if (currentTime - requestWindowStart > 60000) {
+            // Reset window
+            requestWindowStart = currentTime
+            requestCount = 0
+        }
+        
+        if (requestCount >= maxRequestsPerMinute) {
+            val waitTime = 60000 - (currentTime - requestWindowStart)
+            if (waitTime > 0) {
+                delay(waitTime)
+                requestWindowStart = TimeUtils.currentTimeMillis()
+                requestCount = 0
+            }
+        }
+        
+        lastRequestTime = TimeUtils.currentTimeMillis()
+        requestCount++
+    }
+    
+    private suspend fun makeRequest(prompt: String): String {
+        val request = GeminiRequest(
+            contents = listOf(
+                Content(
+                    parts = listOf(Part(text = prompt))
+                )
+            ),
+            generationConfig = GenerationConfig(
+                temperature = 0.1f,
+                topK = 1,
+                topP = 1f,
+                maxOutputTokens = 1024
+            )
+        )
+        
+        val response: HttpResponse = httpClient.post("$baseUrl/models/gemini-pro:generateContent") {
+            header("Content-Type", "application/json")
+            parameter("key", apiKey)
+            setBody(request)
+        }
+        
+        if (response.status != HttpStatusCode.OK) {
+            throw Exception("API request failed: ${response.status} - ${response.bodyAsText()}")
+        }
+        
+        val responseBody = response.body<GeminiResponse>()
+        return responseBody.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            ?: throw Exception("No response content received")
+    }
+    
+    private fun buildAnalysisPrompt(content: String, contentType: ContentType): String {
+        return when (contentType) {
+            ContentType.CODE_FILE -> """
+                Analyze this code and provide:
+                1. Main functionality and purpose
+                2. Key programming concepts used
+                3. Potential improvements or issues
+                4. Dependencies and relationships
+                
+                Code:
+                $content
+                
+                Respond in JSON format with fields: functionality, concepts, improvements, dependencies
+            """.trimIndent()
+            
+            ContentType.TEXT_DOCUMENT -> """
+                Analyze this document and provide:
+                1. Main topics and themes
+                2. Key information and facts
+                3. Document structure and organization
+                4. Relevant entities mentioned
+                
+                Document:
+                $content
+                
+                Respond in JSON format with fields: topics, keyInfo, structure, entities
+            """.trimIndent()
+            
+            ContentType.EMAIL -> """
+                Analyze this email and provide:
+                1. Communication intent and purpose
+                2. Action items or requests
+                3. Urgency level
+                4. Key participants and relationships
+                
+                Email:
+                $content
+                
+                Respond in JSON format with fields: intent, actionItems, urgency, participants
+            """.trimIndent()
+            
+            else -> """
+                Analyze this content and provide:
+                1. Main topics and themes
+                2. Key information
+                3. Content type and structure
+                4. Important entities or concepts
+                
+                Content:
+                $content
+                
+                Respond in JSON format with fields: topics, keyInfo, contentType, entities
+            """.trimIndent()
+        }
+    }
+    
+    private fun buildSummaryPrompt(content: String, contentType: ContentType, maxLength: Int): String {
+        val typeSpecific = when (contentType) {
+            ContentType.CODE_FILE -> "Focus on functionality, not implementation details."
+            ContentType.EMAIL -> "Focus on key points, action items, and decisions."
+            ContentType.TEXT_DOCUMENT -> "Focus on main arguments and conclusions."
+            else -> "Focus on the most important information."
+        }
+        
+        return """
+            Create a concise summary of this content in maximum $maxLength characters.
+            $typeSpecific
+            
+            Content:
+            $content
+            
+            Summary:
+        """.trimIndent()
+    }
+    
+    private fun buildTopicExtractionPrompt(content: String): String {
+        return """
+            Extract the main topics and themes from this content.
+            Return only the topics as a comma-separated list, no explanations.
+            Maximum 10 topics, each 1-3 words.
+            
+            Content:
+            $content
+            
+            Topics:
+        """.trimIndent()
+    }
+    
+    private fun buildIntentPrompt(content: String): String {
+        return """
+            Analyze the communication intent of this content.
+            Classify the intent as one of: REQUEST, INFORM, QUESTION, COMMAND, OFFER, DECLINE
+            Also provide confidence level (0.0-1.0) and brief reasoning.
+            
+            Content:
+            $content
+            
+            Respond in JSON format with fields: intent, confidence, reasoning
+        """.trimIndent()
+    }
+    
+    private fun parseAnalysisResponse(response: String, contentType: ContentType): SemanticAnalysis {
+        return try {
+            // Try to parse as JSON first
+            val jsonResponse = json.decodeFromString<Map<String, String>>(response)
+            
+            SemanticAnalysis(
+                topics = jsonResponse["topics"]?.split(",")?.map { it.trim() } ?: emptyList(),
+                entities = jsonResponse["entities"]?.split(",")?.map { it.trim() } ?: emptyList(),
+                concepts = jsonResponse["concepts"]?.split(",")?.map { it.trim() } ?: emptyList(),
+                structure = jsonResponse["structure"] ?: "",
+                metadata = jsonResponse.filterKeys { it !in listOf("topics", "entities", "concepts", "structure") }
+            )
+        } catch (e: Exception) {
+            // Fallback to simple text parsing
+            SemanticAnalysis(
+                topics = extractSimpleTopics(response),
+                entities = emptyList(),
+                concepts = emptyList(),
+                structure = "unstructured",
+                metadata = mapOf("rawResponse" to response)
+            )
+        }
+    }
+    
+    private fun parseSummaryResponse(response: String, originalContent: String, contentType: ContentType): ContentSummary {
+        val summary = response.trim()
+        val keyPoints = extractKeyPoints(summary)
+        
+        return ContentSummary(
+            summary = summary,
+            keyPoints = keyPoints,
+            contentType = contentType,
+            originalLength = originalContent.length,
+            summaryLength = summary.length
+        )
+    }
+    
+    private fun parseTopicsResponse(response: String): List<String> {
+        return response.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .take(10)
+    }
+    
+    private fun parseIntentResponse(response: String): IntentAnalysis {
+        return try {
+            val jsonResponse = json.decodeFromString<Map<String, String>>(response)
+            
+            IntentAnalysis(
+                intent = jsonResponse["intent"] ?: "UNKNOWN",
+                confidence = jsonResponse["confidence"]?.toFloatOrNull() ?: 0.5f,
+                reasoning = jsonResponse["reasoning"] ?: "Unable to determine intent"
+            )
+        } catch (e: Exception) {
+            IntentAnalysis(
+                intent = "UNKNOWN",
+                confidence = 0.3f,
+                reasoning = "Failed to parse intent analysis"
+            )
+        }
+    }
+    
+    private fun extractSimpleTopics(text: String): List<String> {
+        // Simple keyword extraction as fallback
+        return text.lowercase()
+            .split(Regex("[\\s,.-]+"))
+            .filter { it.length > 3 }
+            .distinct()
+            .take(5)
+    }
+    
+    private fun extractKeyPoints(summary: String): List<String> {
+        // Extract sentences as key points
+        return summary.split(Regex("[.!?]+"))
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it.length > 10 }
+            .take(5)
+    }
+}
 
-/**
- * Gemini API request structure
- */
+// Data classes for API communication
 @Serializable
-data class GeminiAPIRequest(
+data class GeminiRequest(
     val contents: List<Content>,
-    val generationConfig: GenerationConfig,
-    val safetySettings: List<SafetySetting>
+    val generationConfig: GenerationConfig
 )
 
 @Serializable
@@ -48,475 +357,32 @@ data class Part(
 @Serializable
 data class GenerationConfig(
     val temperature: Float,
-    val maxOutputTokens: Int,
+    val topK: Int,
     val topP: Float,
-    val topK: Int
+    val maxOutputTokens: Int
 )
 
 @Serializable
-data class SafetySetting(
-    val category: String,
-    val threshold: String
-)
-
-/**
- * Gemini API response structure
- */
-@Serializable
-data class GeminiAPIResponse(
-    val candidates: List<Candidate>,
-    val usageMetadata: UsageMetadata? = null
+data class GeminiResponse(
+    val candidates: List<Candidate>
 )
 
 @Serializable
 data class Candidate(
-    val content: Content,
-    val finishReason: String? = null,
-    val safetyRatings: List<SafetyRating>? = null
+    val content: Content
 )
 
-@Serializable
-data class SafetyRating(
-    val category: String,
-    val probability: String
+// Analysis result data classes
+data class SemanticAnalysis(
+    val topics: List<String>,
+    val entities: List<String>,
+    val concepts: List<String>,
+    val structure: String,
+    val metadata: Map<String, String>
 )
 
-@Serializable
-data class UsageMetadata(
-    val promptTokenCount: Int,
-    val candidatesTokenCount: Int,
-    val totalTokenCount: Int
+data class IntentAnalysis(
+    val intent: String,
+    val confidence: Float,
+    val reasoning: String
 )
-
-/**
- * Rate limiter for API calls
- */
-class RateLimiter(private val maxRequestsPerMinute: Int) {
-    private val requestTimes = mutableListOf<Long>()
-    
-    suspend fun acquire() {
-        val now = System.currentTimeMillis()
-        
-        // Remove requests older than 1 minute
-        requestTimes.removeAll { it < now - 60000 }
-        
-        // If we're at the limit, wait
-        if (requestTimes.size >= maxRequestsPerMinute) {
-            val oldestRequest = requestTimes.first()
-            val waitTime = 60000 - (now - oldestRequest)
-            if (waitTime > 0) {
-                delay(waitTime)
-            }
-        }
-        
-        requestTimes.add(now)
-    }
-}
-
-/**
- * Omnisyncra Gemini API client implementation
- */
-class OmnisyncraGeminiClient(
-    private val config: GeminiAPIConfig,
-    private val httpClient: HttpClient,
-    private val json: Json = Json { ignoreUnknownKeys = true }
-) : GeminiAPIClient {
-    
-    private val rateLimiter = RateLimiter(config.rateLimitPerMinute)
-    private var usageStats = APIUsageStats(0, 0, config.rateLimitPerMinute, 0)
-    
-    override suspend fun analyzeContent(
-        sanitizedContent: String,
-        analysisType: AnalysisType,
-        privacyLevel: PrivacyLevel
-    ): GeminiResponse {
-        rateLimiter.acquire()
-        
-        val prompt = buildAnalysisPrompt(sanitizedContent, analysisType, privacyLevel)
-        val request = buildGeminiRequest(prompt, privacyLevel)
-        
-        return withRetry(maxAttempts = 3) {
-            val startTime = System.currentTimeMillis()
-            
-            val response = httpClient.post("${config.endpoint}/models/${config.model}:generateContent") {
-                contentType(ContentType.Application.Json)
-                setBody(json.encodeToString(GeminiAPIRequest.serializer(), request))
-                header("x-goog-api-key", config.apiKey)
-            }
-            
-            val responseBody = response.body<String>()
-            val geminiResponse = json.decodeFromString(GeminiAPIResponse.serializer(), responseBody)
-            
-            val processingTime = System.currentTimeMillis() - startTime
-            updateUsageStats(geminiResponse.usageMetadata?.totalTokenCount ?: 0, processingTime)
-            
-            parseGeminiResponse(geminiResponse, analysisType, processingTime)
-        }
-    }
-    
-    override suspend fun generateSummary(
-        content: String,
-        summaryType: SummaryType,
-        maxLength: Int
-    ): String {
-        rateLimiter.acquire()
-        
-        val prompt = buildSummaryPrompt(content, summaryType, maxLength)
-        val request = buildGeminiRequest(prompt, PrivacyLevel.INTERNAL)
-        
-        return withRetry(maxAttempts = 3) {
-            val response = httpClient.post("${config.endpoint}/models/${config.model}:generateContent") {
-                contentType(ContentType.Application.Json)
-                setBody(json.encodeToString(GeminiAPIRequest.serializer(), request))
-                header("x-goog-api-key", config.apiKey)
-            }
-            
-            val responseBody = response.body<String>()
-            val geminiResponse = json.decodeFromString(GeminiAPIResponse.serializer(), responseBody)
-            
-            updateUsageStats(geminiResponse.usageMetadata?.totalTokenCount ?: 0, 0)
-            
-            geminiResponse.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text 
-                ?: "Summary generation failed"
-        }
-    }
-    
-    override suspend fun extractEntities(
-        text: String,
-        entityTypes: Set<EntityType>
-    ): List<Entity> {
-        rateLimiter.acquire()
-        
-        val prompt = buildEntityExtractionPrompt(text, entityTypes)
-        val request = buildGeminiRequest(prompt, PrivacyLevel.INTERNAL)
-        
-        return withRetry(maxAttempts = 3) {
-            val response = httpClient.post("${config.endpoint}/models/${config.model}:generateContent") {
-                contentType(ContentType.Application.Json)
-                setBody(json.encodeToString(GeminiAPIRequest.serializer(), request))
-                header("x-goog-api-key", config.apiKey)
-            }
-            
-            val responseBody = response.body<String>()
-            val geminiResponse = json.decodeFromString(GeminiAPIResponse.serializer(), responseBody)
-            
-            updateUsageStats(geminiResponse.usageMetadata?.totalTokenCount ?: 0, 0)
-            
-            parseEntitiesFromResponse(geminiResponse)
-        }
-    }
-    
-    override suspend fun classifyContent(
-        content: String,
-        categories: List<String>
-    ): ContentClassification {
-        rateLimiter.acquire()
-        
-        val prompt = buildClassificationPrompt(content, categories)
-        val request = buildGeminiRequest(prompt, PrivacyLevel.INTERNAL)
-        
-        return withRetry(maxAttempts = 3) {
-            val response = httpClient.post("${config.endpoint}/models/${config.model}:generateContent") {
-                contentType(ContentType.Application.Json)
-                setBody(json.encodeToString(GeminiAPIRequest.serializer(), request))
-                header("x-goog-api-key", config.apiKey)
-            }
-            
-            val responseBody = response.body<String>()
-            val geminiResponse = json.decodeFromString(GeminiAPIResponse.serializer(), responseBody)
-            
-            updateUsageStats(geminiResponse.usageMetadata?.totalTokenCount ?: 0, 0)
-            
-            parseClassificationFromResponse(geminiResponse)
-        }
-    }
-    
-    override fun getUsageStats(): APIUsageStats = usageStats
-    
-    private fun buildAnalysisPrompt(
-        content: String,
-        analysisType: AnalysisType,
-        privacyLevel: PrivacyLevel
-    ): String {
-        return when (analysisType) {
-            AnalysisType.CONTEXT_EXTRACTION -> """
-                Analyze the following content and extract key context information.
-                Focus on: main topics, important entities, relationships, and semantic meaning.
-                Privacy Level: $privacyLevel - ensure no sensitive information is exposed in analysis.
-                
-                Content: $content
-                
-                Provide response in JSON format with:
-                {
-                  "topics": ["topic1", "topic2"],
-                  "entities": [{"text": "entity", "type": "PERSON", "confidence": 0.9}],
-                  "relationships": [{"source": "A", "target": "B", "type": "related_to"}],
-                  "importance_score": 0.8
-                }
-            """.trimIndent()
-            
-            AnalysisType.ENTITY_RECOGNITION -> """
-                Extract and classify entities from the following content.
-                Include: people, organizations, locations, dates, technologies, concepts.
-                Privacy Level: $privacyLevel
-                
-                Content: $content
-                
-                Provide response in JSON format with entity arrays by type.
-            """.trimIndent()
-            
-            AnalysisType.TOPIC_MODELING -> """
-                Identify main topics and themes in the following content.
-                Provide topic hierarchy and relevance scores.
-                Privacy Level: $privacyLevel
-                
-                Content: $content
-                
-                Provide response in JSON format with topics and confidence scores.
-            """.trimIndent()
-            
-            AnalysisType.SENTIMENT_ANALYSIS -> """
-                Analyze the sentiment of the following content.
-                Provide polarity (-1 to 1), magnitude (0 to 1), and confidence.
-                Privacy Level: $privacyLevel
-                
-                Content: $content
-                
-                Provide response in JSON format: {"polarity": 0.5, "magnitude": 0.8, "confidence": 0.9}
-            """.trimIndent()
-            
-            AnalysisType.RELATIONSHIP_MAPPING -> """
-                Map relationships between entities and concepts in the following content.
-                Focus on semantic and logical connections.
-                Privacy Level: $privacyLevel
-                
-                Content: $content
-                
-                Provide response in JSON format with relationship mappings.
-            """.trimIndent()
-            
-            AnalysisType.INTENT_DETECTION -> """
-                Detect the intent and purpose of the following content.
-                Identify what the user is trying to accomplish.
-                Privacy Level: $privacyLevel
-                
-                Content: $content
-                
-                Provide response in JSON format with detected intents and confidence scores.
-            """.trimIndent()
-        }
-    }
-    
-    private fun buildSummaryPrompt(
-        content: String,
-        summaryType: SummaryType,
-        maxLength: Int
-    ): String {
-        val typeDescription = when (summaryType) {
-            SummaryType.BRIEF -> "Create a brief, concise summary"
-            SummaryType.DETAILED -> "Create a detailed, comprehensive summary"
-            SummaryType.TECHNICAL -> "Create a technical summary focusing on implementation details"
-            SummaryType.EXECUTIVE -> "Create an executive summary for leadership"
-            SummaryType.CONTEXTUAL -> "Create a contextual summary preserving relationships"
-        }
-        
-        return """
-            $typeDescription of the following content.
-            Maximum length: $maxLength characters.
-            Preserve key information and maintain clarity.
-            
-            Content: $content
-            
-            Provide only the summary text, no additional formatting.
-        """.trimIndent()
-    }
-    
-    private fun buildEntityExtractionPrompt(
-        text: String,
-        entityTypes: Set<EntityType>
-    ): String {
-        val types = entityTypes.joinToString(", ")
-        
-        return """
-            Extract entities of the following types from the text: $types
-            
-            Text: $text
-            
-            Provide response in JSON format:
-            {
-              "entities": [
-                {"text": "entity_text", "type": "PERSON", "confidence": 0.9, "start": 0, "end": 10}
-              ]
-            }
-        """.trimIndent()
-    }
-    
-    private fun buildClassificationPrompt(
-        content: String,
-        categories: List<String>
-    ): String {
-        val categoryList = categories.joinToString(", ")
-        
-        return """
-            Classify the following content into these categories: $categoryList
-            Provide confidence scores for each category.
-            
-            Content: $content
-            
-            Provide response in JSON format:
-            {
-              "categories": [
-                {"category": "category_name", "score": 0.8}
-              ],
-              "confidence": 0.9
-            }
-        """.trimIndent()
-    }
-    
-    private fun buildGeminiRequest(
-        prompt: String,
-        privacyLevel: PrivacyLevel
-    ): GeminiAPIRequest {
-        return GeminiAPIRequest(
-            contents = listOf(
-                Content(
-                    parts = listOf(Part(text = prompt))
-                )
-            ),
-            generationConfig = GenerationConfig(
-                temperature = config.temperature,
-                maxOutputTokens = config.maxTokens,
-                topP = 0.8f,
-                topK = 40
-            ),
-            safetySettings = buildSafetySettings(privacyLevel)
-        )
-    }
-    
-    private fun buildSafetySettings(privacyLevel: PrivacyLevel): List<SafetySetting> {
-        val threshold = when (privacyLevel) {
-            PrivacyLevel.PUBLIC -> "BLOCK_MEDIUM_AND_ABOVE"
-            PrivacyLevel.INTERNAL -> "BLOCK_ONLY_HIGH"
-            PrivacyLevel.CONFIDENTIAL -> "BLOCK_LOW_AND_ABOVE"
-            PrivacyLevel.RESTRICTED -> "BLOCK_LOW_AND_ABOVE"
-        }
-        
-        return listOf(
-            SafetySetting("HARM_CATEGORY_HARASSMENT", threshold),
-            SafetySetting("HARM_CATEGORY_HATE_SPEECH", threshold),
-            SafetySetting("HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold),
-            SafetySetting("HARM_CATEGORY_DANGEROUS_CONTENT", threshold)
-        )
-    }
-    
-    private fun parseGeminiResponse(
-        response: GeminiAPIResponse,
-        analysisType: AnalysisType,
-        processingTime: Long
-    ): GeminiResponse {
-        val candidate = response.candidates.firstOrNull()
-        val content = candidate?.content?.parts?.firstOrNull()?.text ?: ""
-        
-        // Parse JSON response based on analysis type
-        val analysis = try {
-            json.decodeFromString<Map<String, Any>>(content)
-        } catch (e: Exception) {
-            mapOf("raw_response" to content, "parse_error" to e.message)
-        }
-        
-        return GeminiResponse(
-            analysis = analysis,
-            confidence = 0.8f, // Default confidence, could be extracted from response
-            processingTime = processingTime,
-            tokensUsed = response.usageMetadata?.totalTokenCount ?: 0,
-            requestId = generateRequestId()
-        )
-    }
-    
-    private fun parseEntitiesFromResponse(response: GeminiAPIResponse): List<Entity> {
-        val candidate = response.candidates.firstOrNull()
-        val content = candidate?.content?.parts?.firstOrNull()?.text ?: ""
-        
-        return try {
-            val parsed = json.decodeFromString<Map<String, List<Map<String, Any>>>>(content)
-            val entities = parsed["entities"] ?: emptyList()
-            
-            entities.mapNotNull { entityMap ->
-                try {
-                    Entity(
-                        text = entityMap["text"] as String,
-                        type = EntityType.valueOf(entityMap["type"] as String),
-                        confidence = (entityMap["confidence"] as Number).toFloat(),
-                        startIndex = (entityMap["start"] as Number).toInt(),
-                        endIndex = (entityMap["end"] as Number).toInt()
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    private fun parseClassificationFromResponse(response: GeminiAPIResponse): ContentClassification {
-        val candidate = response.candidates.firstOrNull()
-        val content = candidate?.content?.parts?.firstOrNull()?.text ?: ""
-        
-        return try {
-            val parsed = json.decodeFromString<Map<String, Any>>(content)
-            val categories = (parsed["categories"] as List<Map<String, Any>>).map { categoryMap ->
-                CategoryScore(
-                    category = categoryMap["category"] as String,
-                    score = (categoryMap["score"] as Number).toFloat()
-                )
-            }
-            
-            ContentClassification(
-                categories = categories,
-                confidence = (parsed["confidence"] as Number).toFloat()
-            )
-        } catch (e: Exception) {
-            ContentClassification(
-                categories = emptyList(),
-                confidence = 0.0f
-            )
-        }
-    }
-    
-    private fun updateUsageStats(tokensUsed: Int, processingTime: Long) {
-        usageStats = usageStats.copy(
-            requestsToday = usageStats.requestsToday + 1,
-            tokensUsedToday = usageStats.tokensUsedToday + tokensUsed,
-            quotaRemaining = maxOf(0, usageStats.quotaRemaining - 1),
-            averageResponseTime = if (usageStats.requestsToday == 0) processingTime 
-                else (usageStats.averageResponseTime + processingTime) / 2
-        )
-    }
-    
-    private fun generateRequestId(): String {
-        return "req_${System.currentTimeMillis()}_${Random.nextInt(1000, 9999)}"
-    }
-}
-
-/**
- * Retry utility with exponential backoff
- */
-suspend fun <T> withRetry(
-    maxAttempts: Int = 3,
-    baseDelay: Long = 1000,
-    maxDelay: Long = 10000,
-    factor: Double = 2.0,
-    block: suspend () -> T
-): T {
-    var currentDelay = baseDelay
-    repeat(maxAttempts - 1) { attempt ->
-        try {
-            return block()
-        } catch (e: Exception) {
-            delay(currentDelay)
-            currentDelay = min(maxDelay, (currentDelay * factor).toLong())
-        }
-    }
-    return block() // Last attempt without catch
-}

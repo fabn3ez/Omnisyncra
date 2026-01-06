@@ -1,145 +1,237 @@
 package com.omnisyncra.core.security
 
-import com.benasher44.uuid.Uuid
 import kotlinx.coroutines.flow.StateFlow
+import com.omnisyncra.core.platform.TimeUtils
 
 /**
- * Core security system interface for Omnisyncra Phase 13
- * Provides comprehensive security, encryption, and trust management
+ * Core Security System Interface
+ * Provides comprehensive security services for Omnisyncra
  */
 interface SecuritySystem {
-    suspend fun initialize(): Boolean
-    suspend fun createSecureChannel(deviceId: Uuid): SecureChannel?
-    suspend fun authenticateDevice(deviceId: Uuid, certificate: DeviceCertificate): AuthResult
-    suspend fun establishTrust(deviceId: Uuid, method: TrustMethod): TrustResult
-    suspend fun revokeTrust(deviceId: Uuid): Boolean
-    fun getSecurityStatus(): SecurityStatus
+    /**
+     * Current security system status
+     */
+    val status: StateFlow<SecurityStatus>
+    
+    /**
+     * Initialize the security system
+     */
+    suspend fun initialize(): Result<Unit>
+    
+    /**
+     * Encrypt data using AES-256-GCM
+     */
+    suspend fun encrypt(data: ByteArray, key: ByteArray): Result<EncryptedData>
+    
+    /**
+     * Decrypt data using AES-256-GCM
+     */
+    suspend fun decrypt(encryptedData: EncryptedData, key: ByteArray): Result<ByteArray>
+    
+    /**
+     * Generate a new encryption key
+     */
+    suspend fun generateKey(): Result<ByteArray>
+    
+    /**
+     * Perform key exchange with another device
+     */
+    suspend fun performKeyExchange(deviceId: String): Result<SharedSecret>
+    
+    /**
+     * Sign data with device private key
+     */
+    suspend fun signData(data: ByteArray): Result<Signature>
+    
+    /**
+     * Verify signature with device public key
+     */
+    suspend fun verifySignature(data: ByteArray, signature: Signature, publicKey: ByteArray): Result<Boolean>
+    
+    /**
+     * Get device certificate
+     */
+    suspend fun getDeviceCertificate(): Result<DeviceCertificate>
+    
+    /**
+     * Establish trust with another device
+     */
+    suspend fun establishTrust(deviceId: String, certificate: DeviceCertificate): Result<TrustLevel>
+    
+    /**
+     * Get trust level for a device
+     */
+    suspend fun getTrustLevel(deviceId: String): TrustLevel
+    
+    /**
+     * Shutdown the security system
+     */
     suspend fun shutdown()
 }
 
 /**
- * Secure communication channel between devices
+ * Security System Status
  */
-interface SecureChannel {
-    val deviceId: Uuid
-    val isActive: Boolean
-    val encryptionAlgorithm: EncryptionAlgorithm
-    
-    suspend fun send(data: ByteArray): Boolean
-    suspend fun receive(): ByteArray?
-    suspend fun close()
+enum class SecurityStatus {
+    INITIALIZING,
+    READY,
+    PROCESSING,
+    ERROR,
+    SHUTDOWN
 }
 
 /**
- * Authentication result
+ * Encrypted data container
  */
-sealed class AuthResult {
-    object Success : AuthResult()
-    data class Failed(val reason: String) : AuthResult()
-    data class Pending(val challengeData: ByteArray) : AuthResult()
-}
-
-/**
- * Trust establishment methods
- */
-enum class TrustMethod {
-    QR_CODE,
-    PIN_VERIFICATION,
-    CERTIFICATE_CHAIN,
-    MANUAL_APPROVAL
-}
-
-/**
- * Trust establishment result
- */
-sealed class TrustResult {
-    object Success : TrustResult()
-    data class Failed(val reason: String) : TrustResult()
-    data class RequiresUserAction(val action: String, val data: ByteArray) : TrustResult()
-}
-
-/**
- * Overall security system status
- */
-data class SecurityStatus(
-    val isInitialized: Boolean,
-    val activeChannels: Int,
-    val trustedDevices: Int,
-    val pendingAuthentications: Int,
-    val lastSecurityEvent: com.omnisyncra.core.security.SecurityEvent?
-)
-
-// Note: SecurityEvent, SecurityEventType, and SecurityEventSeverity are defined in SecurityEventLogger.kt
-
-/**
- * Enhanced device certificate with additional security features
- */
-data class DeviceCertificate(
-    val deviceId: Uuid,
-    val publicKey: ByteArray,
-    val issuer: String,
-    val subject: String,
-    val validFrom: Long,
-    val validUntil: Long,
-    val signature: ByteArray,
-    val serialNumber: String,
-    val version: Int = 1,
-    val keyUsage: Set<KeyUsage> = setOf(KeyUsage.DIGITAL_SIGNATURE, KeyUsage.KEY_AGREEMENT),
-    val extensions: Map<String, ByteArray> = emptyMap()
+data class EncryptedData(
+    val ciphertext: ByteArray,
+    val nonce: ByteArray,
+    val tag: ByteArray
 ) {
-    fun isValid(currentTime: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()): Boolean {
-        return currentTime in validFrom..validUntil
-    }
-    
-    fun isExpiringSoon(thresholdMs: Long = 7 * 24 * 60 * 60 * 1000L): Boolean {
-        val currentTime = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        return (validUntil - currentTime) <= thresholdMs
-    }
-    
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
-        other as DeviceCertificate
-        return deviceId == other.deviceId && serialNumber == other.serialNumber
+        
+        other as EncryptedData
+        
+        if (!ciphertext.contentEquals(other.ciphertext)) return false
+        if (!nonce.contentEquals(other.nonce)) return false
+        if (!tag.contentEquals(other.tag)) return false
+        
+        return true
     }
-
+    
     override fun hashCode(): Int {
-        var result = deviceId.hashCode()
-        result = 31 * result + serialNumber.hashCode()
+        var result = ciphertext.contentHashCode()
+        result = 31 * result + nonce.contentHashCode()
+        result = 31 * result + tag.contentHashCode()
         return result
     }
 }
 
-enum class KeyUsage {
-    DIGITAL_SIGNATURE,
-    KEY_AGREEMENT,
-    KEY_ENCIPHERMENT,
-    DATA_ENCIPHERMENT,
-    CERTIFICATE_SIGNING
+/**
+ * Shared secret from key exchange
+ */
+data class SharedSecret(
+    val secret: ByteArray,
+    val deviceId: String,
+    val timestamp: Long = TimeUtils.currentTimeMillis()
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        
+        other as SharedSecret
+        
+        if (!secret.contentEquals(other.secret)) return false
+        if (deviceId != other.deviceId) return false
+        if (timestamp != other.timestamp) return false
+        
+        return true
+    }
+    
+    override fun hashCode(): Int {
+        var result = secret.contentHashCode()
+        result = 31 * result + deviceId.hashCode()
+        result = 31 * result + timestamp.hashCode()
+        return result
+    }
 }
 
 /**
- * Trust levels with enhanced granularity
+ * Digital signature
+ */
+data class Signature(
+    val signature: ByteArray,
+    val algorithm: String = "Ed25519",
+    val timestamp: Long = TimeUtils.currentTimeMillis()
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        
+        other as Signature
+        
+        if (!signature.contentEquals(other.signature)) return false
+        if (algorithm != other.algorithm) return false
+        if (timestamp != other.timestamp) return false
+        
+        return true
+    }
+    
+    override fun hashCode(): Int {
+        var result = signature.contentHashCode()
+        result = 31 * result + algorithm.hashCode()
+        result = 31 * result + timestamp.hashCode()
+        return result
+    }
+}
+
+/**
+ * Device certificate for authentication
+ */
+data class DeviceCertificate(
+    val deviceId: String,
+    val publicKey: ByteArray,
+    val signature: ByteArray,
+    val issuer: String = "self-signed",
+    val validFrom: Long = TimeUtils.currentTimeMillis(),
+    val validUntil: Long = TimeUtils.currentTimeMillis() + (365 * 24 * 60 * 60 * 1000L), // 1 year
+    val metadata: Map<String, String> = emptyMap()
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        
+        other as DeviceCertificate
+        
+        if (deviceId != other.deviceId) return false
+        if (!publicKey.contentEquals(other.publicKey)) return false
+        if (!signature.contentEquals(other.signature)) return false
+        if (issuer != other.issuer) return false
+        if (validFrom != other.validFrom) return false
+        if (validUntil != other.validUntil) return false
+        if (metadata != other.metadata) return false
+        
+        return true
+    }
+    
+    override fun hashCode(): Int {
+        var result = deviceId.hashCode()
+        result = 31 * result + publicKey.contentHashCode()
+        result = 31 * result + signature.contentHashCode()
+        result = 31 * result + issuer.hashCode()
+        result = 31 * result + validFrom.hashCode()
+        result = 31 * result + validUntil.hashCode()
+        result = 31 * result + metadata.hashCode()
+        return result
+    }
+}
+
+/**
+ * Trust levels for devices
  */
 enum class TrustLevel {
     UNKNOWN,
     PENDING,
     TRUSTED,
-    VERIFIED,
     REVOKED
 }
 
 /**
- * Device identity with comprehensive trust information
+ * Types of security events
  */
-data class DeviceIdentity(
-    val deviceId: Uuid,
-    val certificate: DeviceCertificate,
-    val trustLevel: TrustLevel = TrustLevel.PENDING,
-    val trustedAt: Long? = null,
-    val trustedBy: Uuid? = null,
-    val trustMethod: TrustMethod? = null,
-    val lastSeen: Long? = null,
-    val capabilities: Set<String> = emptySet(),
-    val metadata: Map<String, String> = emptyMap()
-)
+enum class SecurityEventType {
+    ENCRYPTION,
+    DECRYPTION,
+    KEY_EXCHANGE,
+    SIGNATURE_CREATED,
+    SIGNATURE_VERIFIED,
+    TRUST_ESTABLISHED,
+    TRUST_REVOKED,
+    CERTIFICATE_GENERATED,
+    CERTIFICATE_VALIDATED,
+    SECURITY_ERROR,
+    AUTHENTICATION_SUCCESS,
+    AUTHENTICATION_FAILURE
+}
