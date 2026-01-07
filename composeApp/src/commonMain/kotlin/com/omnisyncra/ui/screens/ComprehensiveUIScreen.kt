@@ -97,7 +97,8 @@ fun ComprehensiveUIScreen() {
                         3 -> GhostHandoffScreen()
                         4 -> DistributedStateSection(primaryGlow, secondaryGlow)
                         5 -> ComputeOffloadingSection(accentGlow, secondaryGlow)
-                        6 -> SystemStatusSection(primaryGlow, accentGlow)
+                        6 -> RealSystemMonitoringScreen()
+                        7 -> SystemStatusSection(primaryGlow, accentGlow)
                     }
                 }
             }
@@ -234,6 +235,7 @@ private fun PremiumSidebar(
         SidebarSection("Ghost Handoff", Icons.Default.SwapHoriz, "Seamless state transfer"),
         SidebarSection("Distributed State", Icons.Default.Storage, "CRDT-based synchronization"),
         SidebarSection("Compute Offloading", Icons.Default.CloudQueue, "Intelligent task distribution"),
+        SidebarSection("System Monitoring", Icons.Default.Analytics, "Advanced system analytics"),
         SidebarSection("System Status", Icons.Default.Dashboard, "Real-time system monitoring")
     )
     

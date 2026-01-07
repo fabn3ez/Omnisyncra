@@ -20,7 +20,8 @@ import kotlinx.serialization.decodeFromString
 class OmnisyncraGhostHandoffSystem(
     private val deviceId: String,
     private val securitySystem: SecuritySystem,
-    private val aiSystem: AISystem
+    private val aiSystem: AISystem,
+    private val networkCommunicator: com.omnisyncra.core.network.NetworkCommunicator
 ) : GhostHandoffSystem {
     
     private val _status = MutableStateFlow(HandoffStatus.INITIALIZING)
@@ -38,6 +39,10 @@ class OmnisyncraGhostHandoffSystem(
             // Initialize dependencies
             securitySystem.initialize()
             aiSystem.initialize()
+            networkCommunicator.initialize()
+            
+            // Start network discovery
+            networkCommunicator.startDiscovery()
             
             logHandoffEvent(HandoffEventType.DEVICE_DISCOVERED, "Ghost Handoff system initialized")
             
@@ -137,45 +142,35 @@ class OmnisyncraGhostHandoffSystem(
     
     override suspend fun getAvailableDevices(): Result<List<HandoffDevice>> {
         return try {
-            // Simulate device discovery
-            val devices = listOf(
-                HandoffDevice(
-                    deviceId = "laptop-001",
-                    deviceName = "MacBook Pro",
-                    deviceType = "laptop",
-                    capabilities = listOf("display", "keyboard", "compute"),
-                    proximity = DeviceProximity.SAME_ROOM,
-                    batteryLevel = 0.85f,
-                    networkLatency = 15L,
-                    isAvailable = true
-                ),
-                HandoffDevice(
-                    deviceId = "phone-001",
-                    deviceName = "iPhone 15 Pro",
-                    deviceType = "smartphone",
-                    capabilities = listOf("touch", "camera", "sensors"),
-                    proximity = DeviceProximity.SAME_ROOM,
-                    batteryLevel = 0.67f,
-                    networkLatency = 12L,
-                    isAvailable = true
-                ),
-                HandoffDevice(
-                    deviceId = "tablet-001",
-                    deviceName = "iPad Air",
-                    deviceType = "tablet",
-                    capabilities = listOf("touch", "display", "stylus"),
-                    proximity = DeviceProximity.SAME_NETWORK,
-                    batteryLevel = 0.92f,
-                    networkLatency = 25L,
-                    isAvailable = true
-                )
-            )
+            // Get devices from network communicator
+            val networkDevicesResult = networkCommunicator.getDiscoveredDevices()
+            if (networkDevicesResult.isFailure) {
+                return Result.failure(networkDevicesResult.exceptionOrNull()!!)
+            }
             
-            devices.forEach { device ->
+            val networkDevices = networkDevicesResult.getOrNull() ?: emptyList()
+            
+            // Convert network devices to handoff devices
+            val handoffDevices = networkDevices.map { networkDevice ->
+                HandoffDevice(
+                    deviceId = networkDevice.deviceId,
+                    deviceName = networkDevice.deviceName,
+                    deviceType = inferDeviceType(networkDevice.deviceName),
+                    capabilities = networkDevice.capabilities,
+                    proximity = inferProximity(networkDevice.signalStrength),
+                    batteryLevel = null, // Would be obtained from device-specific APIs
+                    networkLatency = 15L, // Would be measured
+                    isAvailable = true,
+                    lastSeen = networkDevice.lastSeen
+                )
+            }
+            
+            // Update available devices cache
+            handoffDevices.forEach { device ->
                 availableDevices[device.deviceId] = device
             }
             
-            Result.success(devices)
+            Result.success(handoffDevices)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -412,12 +407,18 @@ class OmnisyncraGhostHandoffSystem(
     }
     
     private suspend fun sendHandoffRequest(targetDeviceId: String, encryptedData: ByteArray): Boolean {
-        // Simulate network communication
         return try {
-            // In real implementation, would use actual network communication
-            logHandoffEvent(HandoffEventType.HANDOFF_INITIATED, "Handoff request sent to $targetDeviceId")
-            true
+            // Use real network communication
+            val sendResult = networkCommunicator.sendData(targetDeviceId, encryptedData)
+            if (sendResult.isSuccess) {
+                logHandoffEvent(HandoffEventType.HANDOFF_INITIATED, "Handoff request sent to $targetDeviceId")
+                true
+            } else {
+                logHandoffEvent(HandoffEventType.HANDOFF_FAILED, "Failed to send handoff request: ${sendResult.exceptionOrNull()?.message}")
+                false
+            }
         } catch (e: Exception) {
+            logHandoffEvent(HandoffEventType.HANDOFF_FAILED, "Network error: ${e.message}")
             false
         }
     }
@@ -448,5 +449,28 @@ class OmnisyncraGhostHandoffSystem(
         }
         
         println("🔄 Ghost Handoff: $message")
+    }
+    
+    private fun inferDeviceType(deviceName: String): String {
+        return when {
+            deviceName.contains("MacBook", ignoreCase = true) || 
+            deviceName.contains("laptop", ignoreCase = true) -> "laptop"
+            deviceName.contains("iPhone", ignoreCase = true) || 
+            deviceName.contains("phone", ignoreCase = true) -> "smartphone"
+            deviceName.contains("iPad", ignoreCase = true) || 
+            deviceName.contains("tablet", ignoreCase = true) -> "tablet"
+            deviceName.contains("Desktop", ignoreCase = true) || 
+            deviceName.contains("PC", ignoreCase = true) -> "desktop"
+            else -> "unknown"
+        }
+    }
+    
+    private fun inferProximity(signalStrength: Float): DeviceProximity {
+        return when {
+            signalStrength > 0.8f -> DeviceProximity.SAME_ROOM
+            signalStrength > 0.5f -> DeviceProximity.SAME_NETWORK
+            signalStrength > 0.2f -> DeviceProximity.REMOTE
+            else -> DeviceProximity.UNKNOWN
+        }
     }
 }

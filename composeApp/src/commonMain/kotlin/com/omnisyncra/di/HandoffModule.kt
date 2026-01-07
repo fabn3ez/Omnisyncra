@@ -10,7 +10,8 @@ val handoffModule = module {
         OmnisyncraGhostHandoffSystem(
             deviceId = deviceId,
             securitySystem = get(),
-            aiSystem = get()
+            aiSystem = get(),
+            networkCommunicator = get()
         )
     }
 }

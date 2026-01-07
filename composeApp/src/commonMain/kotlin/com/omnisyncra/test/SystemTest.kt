@@ -2,7 +2,10 @@ package com.omnisyncra.test
 
 import com.omnisyncra.core.ai.*
 import com.omnisyncra.core.security.*
+import com.omnisyncra.core.monitoring.*
+import com.omnisyncra.core.network.*
 import io.ktor.client.*
+import org.koin.core.context.GlobalContext
 
 /**
  * Simple test to verify AI and Security systems work
@@ -104,5 +107,29 @@ suspend fun testSystemsImpl() {
     httpClient.close()
     securitySystem.shutdown()
     
-    println("\n🎉 System test completed!")
+    // Test Real System Integration
+    println("\n🔧 Testing Real System Integration...")
+    try {
+        val koin = GlobalContext.get()
+        val realSystemMonitor = koin.get<SystemMonitor>() as? RealSystemMonitor
+        val realNetworkCommunicator = koin.get<NetworkCommunicator>() as? RealNetworkCommunicator
+        
+        if (realSystemMonitor != null && realNetworkCommunicator != null) {
+            println("✅ Real system components found")
+            
+            // Test real system monitoring
+            testRealSystemMonitoring(realSystemMonitor, realNetworkCommunicator)
+            
+            // Demonstrate real vs simulated data
+            demonstrateRealVsSimulated(realSystemMonitor)
+            
+            println("✅ Real system integration test completed")
+        } else {
+            println("⚠️ Real system components not available (using simulated versions)")
+        }
+    } catch (e: Exception) {
+        println("⚠️ Real system integration test skipped: ${e.message}")
+    }
+    
+    println("\n🎉 Complete system test finished!")
 }

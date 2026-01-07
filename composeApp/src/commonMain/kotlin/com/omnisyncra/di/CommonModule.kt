@@ -105,5 +105,7 @@ val allModules = listOf(
     commonModule,
     securityModule,
     aiModule,
-    handoffModule
+    networkModule,
+    handoffModule,
+    monitoringModule
 )
