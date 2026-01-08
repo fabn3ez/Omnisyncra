@@ -145,7 +145,7 @@ suspend fun demonstrateRealVsSimulated(systemMonitor: RealSystemMonitor) {
         
         if (i % 5 == 0) {
             val currentHealth = systemMonitor.systemHealth.value
-            println("📊 After ${i + 1} operations - CPU: ${(currentHealth.cpuUsage * 100).toInt()}%, Memory: ${(currentHealth.memoryUsage * 100).toInt()}%, Errors: ${"%.1f".format(currentHealth.errorRate)}/min")
+            println("📊 After ${i + 1} operations - CPU: ${(currentHealth.cpuUsage * 100).toInt()}%, Memory: ${(currentHealth.memoryUsage * 100).toInt()}%, Errors: ${(currentHealth.errorRate * 10).toInt() / 10.0}/min")
         }
         
         delay(100)

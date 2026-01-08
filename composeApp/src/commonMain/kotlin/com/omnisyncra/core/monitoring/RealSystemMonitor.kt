@@ -529,7 +529,7 @@ class RealSystemMonitor(
         }
         
         if (health.errorRate > 1f) {
-            recommendations.add("Error rate is above normal (${"%.1f".format(health.errorRate)}/min) - review error logs")
+            recommendations.add("Error rate is above normal (${(health.errorRate * 10).toInt() / 10.0}/min) - review error logs")
         }
         
         return recommendations

@@ -4,7 +4,6 @@ import com.benasher44.uuid.uuid4
 import com.omnisyncra.core.compute.*
 import com.omnisyncra.core.discovery.DeviceDiscovery
 import com.omnisyncra.core.discovery.MockDeviceDiscovery
-import com.omnisyncra.core.performance.*
 import com.omnisyncra.core.platform.Platform
 import com.omnisyncra.core.platform.getPlatform
 import com.omnisyncra.core.resilience.*
@@ -24,12 +23,6 @@ val commonModule = module {
     
     // Storage
     single<LocalStorage> { InMemoryStorage() }
-    
-    // Performance Components
-    single { ConnectionPool() }
-    single { CrdtCache() }
-    single { PerformanceMonitor() }
-    single { BatchManager() }
     
     // Resilience Components
     single<ErrorRecoveryManager> { ErrorRecoveryManagerImpl() }
@@ -67,7 +60,6 @@ val commonModule = module {
     }
     
     // Compute Services
-    single<PerformanceProfiler> { OmnisyncraPerformanceProfiler(get()) }
     single<TaskExecutor> {
         val nodeId = get<com.benasher44.uuid.Uuid>()
         val platform = get<Platform>()

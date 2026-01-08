@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.omnisyncra.test.testSystems
 
 /**
  * Comprehensive UI Screen showcasing all core functionalities
@@ -107,12 +106,7 @@ fun ComprehensiveUIScreen() {
         // Floating Action Elements
         FloatingActionElements(
             primaryGlow = primaryGlow,
-            glowAnimation = glowAnimation,
-            onTestSystems = {
-                scope.launch {
-                    testSystems()
-                }
-            }
+            glowAnimation = glowAnimation
         )
     }
 }
@@ -828,15 +822,14 @@ private fun GlassmorphismCard(
 @Composable
 private fun FloatingActionElements(
     primaryGlow: Color,
-    glowAnimation: Float,
-    onTestSystems: () -> Unit
+    glowAnimation: Float
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomEnd
     ) {
         FloatingActionButton(
-            onClick = onTestSystems,
+            onClick = { /* Test functionality removed */ },
             modifier = Modifier
                 .padding(24.dp)
                 .size(56.dp),

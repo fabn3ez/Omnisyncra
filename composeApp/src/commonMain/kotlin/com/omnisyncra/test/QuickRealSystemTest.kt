@@ -60,7 +60,7 @@ suspend fun quickRealSystemTest() {
         println("   CPU Usage: ${(systemHealth.cpuUsage * 100).toInt()}%")
         println("   Memory Usage: ${(systemHealth.memoryUsage * 100).toInt()}%")
         println("   Network Latency: ${systemHealth.networkLatency}ms")
-        println("   Error Rate: ${"%.1f".format(systemHealth.errorRate)}/min")
+        println("   Error Rate: ${(systemHealth.errorRate * 10).toInt() / 10.0}/min")
         println("   Overall Status: ${systemHealth.overallStatus}")
         
         // Check performance metrics

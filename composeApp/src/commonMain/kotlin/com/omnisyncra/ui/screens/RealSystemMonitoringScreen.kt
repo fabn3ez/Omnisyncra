@@ -414,7 +414,7 @@ private fun RealSystemHealthCard(
                 )
                 RealMetricCard(
                     title = "Error Rate",
-                    value = "${"%.1f".format(systemHealth.errorRate)}/min",
+                    value = "${(systemHealth.errorRate * 10).toInt() / 10.0}/min",
                     subtitle = "Errors",
                     color = if (systemHealth.errorRate > 1f) errorGlow else accentGlow,
                     modifier = Modifier.weight(1f)
