@@ -1,7 +1,7 @@
 package com.omnisyncra.core.security
 
 import com.benasher44.uuid.Uuid
-import com.omnisyncra.core.domain.SecurityContext
+import com.omnisyncra.core.domain.DeviceSecurityContext
 import com.omnisyncra.core.domain.TrustLevel
 import com.omnisyncra.core.storage.LocalStorage
 import kotlinx.coroutines.flow.Flow

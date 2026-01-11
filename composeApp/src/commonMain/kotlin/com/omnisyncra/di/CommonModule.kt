@@ -3,7 +3,7 @@ package com.omnisyncra.di
 import com.benasher44.uuid.uuid4
 import com.omnisyncra.core.compute.*
 import com.omnisyncra.core.discovery.DeviceDiscovery
-import com.omnisyncra.core.discovery.MockDeviceDiscovery
+import com.omnisyncra.core.discovery.RealDeviceDiscovery
 import com.omnisyncra.core.platform.Platform
 import com.omnisyncra.core.platform.getPlatform
 import com.omnisyncra.core.resilience.*
@@ -45,7 +45,7 @@ val commonModule = module {
     
     // Core Services
     single { uuid4() } // Node ID
-    single<DeviceDiscovery> { MockDeviceDiscovery(get()) }
+    single<DeviceDiscovery> { RealDeviceDiscovery(get()) }
     single { StateRecovery(get(), get()) }
     single<DistributedStateManager> { SimpleStateManager(get(), get()) }
     
