@@ -25,7 +25,7 @@ val commonModule = module {
     single<LocalStorage> { InMemoryStorage() }
     
     // Resilience Components
-    single<ErrorRecoveryManager> { ErrorRecoveryManagerImpl() }
+    single<com.omnisyncra.core.resilience.ErrorRecoveryManager> { com.omnisyncra.core.resilience.ErrorRecoveryManagerImpl() }
     single<GracefulDegradationManager> { GracefulDegradationManagerImpl() }
     
     // Security Components (now using real implementations)

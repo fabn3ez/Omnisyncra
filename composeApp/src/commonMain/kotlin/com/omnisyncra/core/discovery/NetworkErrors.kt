@@ -370,11 +370,17 @@ data class ErrorDetails(
 /**
  * Error recovery strategy
  */
+@Serializable
 sealed class RecoveryStrategy {
+    @Serializable
     object NoRecovery : RecoveryStrategy()
+    @Serializable
     data class Retry(val maxAttempts: Int, val backoffMs: Long) : RecoveryStrategy()
+    @Serializable
     data class Fallback(val alternativeAction: String) : RecoveryStrategy()
+    @Serializable
     data class CircuitBreaker(val failureThreshold: Int, val timeoutMs: Long) : RecoveryStrategy()
+    @Serializable
     data class UserIntervention(val requiredAction: String) : RecoveryStrategy()
 }
 
