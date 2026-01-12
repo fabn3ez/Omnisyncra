@@ -30,8 +30,8 @@ actual class WebSocketClient actual constructor(
                 canDisplay = true,
                 canInput = true,
                 processingPower = ProcessingPower.MEDIUM,
-                memoryCapacity = MemoryCapacity.LOW,
-                storageCapacity = StorageCapacity.LOW,
+                memoryCapacity = MemoryCapacity.SMALL,
+                storageCapacity = StorageCapacity.SMALL,
                 networkCapability = NetworkCapability.FULL,
                 batteryCapacity = BatteryCapacity.UNLIMITED
             ),

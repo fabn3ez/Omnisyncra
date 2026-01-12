@@ -31,7 +31,7 @@ actual class WebSocketClient actual constructor(
                 canInput = true,
                 processingPower = ProcessingPower.HIGH,
                 memoryCapacity = MemoryCapacity.MEDIUM,
-                storageCapacity = StorageCapacity.LOW,
+                storageCapacity = StorageCapacity.SMALL,
                 networkCapability = NetworkCapability.FULL,
                 batteryCapacity = BatteryCapacity.UNLIMITED
             ),

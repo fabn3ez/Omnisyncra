@@ -244,12 +244,11 @@ class RealDeviceDiscovery(
             
             // Handle discovery startup error with comprehensive error handling
             val networkError = when (e) {
-                is SecurityException -> NetworkError.PlatformError.PermissionDenied(
+                is IllegalStateException -> NetworkError.PlatformError.PermissionDenied(
                     permission = "network_access",
                     platform = platform.name,
                     cause = e
                 )
-                is java.net.UnknownHostException -> NetworkError.DiscoveryError.NoNetworkInterfaces(e)
                 else -> NetworkError.DiscoveryError.NetworkInterfaceError(
                     interfaceName = "unknown",
                     cause = e
@@ -309,12 +308,12 @@ class RealDeviceDiscovery(
             if (connectionResult.isFailure) {
                 val originalError = connectionResult.exceptionOrNull()
                 val networkError = when (originalError) {
-                    is java.net.ConnectException -> NetworkError.ConnectionError.ConnectionRefused(
+                    is IllegalStateException -> NetworkError.ConnectionError.ConnectionRefused(
                         host = device.ipAddress,
                         port = device.port,
                         cause = originalError
                     )
-                    is java.net.SocketTimeoutException -> NetworkError.ConnectionError.ConnectionTimeout(
+                    is RuntimeException -> NetworkError.ConnectionError.ConnectionTimeout(
                         host = device.ipAddress,
                         port = device.port,
                         timeoutMs = 10000L,
@@ -376,7 +375,7 @@ class RealDeviceDiscovery(
             Result.success(Unit)
         } catch (e: Exception) {
             val networkError = when (e) {
-                is SecurityException -> {
+                is IllegalStateException -> {
                     // Enhanced network permission error handling
                     val permissionError = NetworkError.PlatformError.PermissionDenied(
                         permission = "network_access",
@@ -524,13 +523,12 @@ class RealDeviceDiscovery(
                     delay(5000) // Scan every 5 seconds
                 } catch (e: Exception) {
                     val networkError = when (e) {
-                        is java.net.SocketTimeoutException -> NetworkError.DiscoveryError.ScanTimeout(
+                        is RuntimeException -> NetworkError.DiscoveryError.ScanTimeout(
                             networkRange = "local_network",
                             timeoutMs = 5000L,
                             cause = e
                         )
-                        is java.net.UnknownHostException -> NetworkError.DiscoveryError.NoNetworkInterfaces(e)
-                        is SecurityException -> NetworkError.PlatformError.PermissionDenied(
+                        is IllegalStateException -> NetworkError.PlatformError.PermissionDenied(
                             permission = "network_scan",
                             platform = platform.name,
                             cause = e
@@ -653,12 +651,11 @@ class RealDeviceDiscovery(
             }
         } catch (e: Exception) {
             val networkError = when (e) {
-                is java.net.SocketTimeoutException -> NetworkError.DiscoveryError.ScanTimeout(
+                is RuntimeException -> NetworkError.DiscoveryError.ScanTimeout(
                     networkRange = "8080-8090",
                     timeoutMs = 30000L,
                     cause = e
                 )
-                is java.net.UnknownHostException -> NetworkError.DiscoveryError.NoNetworkInterfaces(e)
                 else -> NetworkError.DiscoveryError.NetworkInterfaceError(
                     interfaceName = "network_scan",
                     cause = e
